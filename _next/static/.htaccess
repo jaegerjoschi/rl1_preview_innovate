@@ -1,0 +1,8 @@
+# Erzeugt von scripts/clean-export.mjs — nicht von Hand ändern.
+#
+# Jeder Dateiname hier trägt einen Inhalts-Hash. Ändert sich der Inhalt,
+# ändert sich der Name — die Datei darf deshalb dauerhaft im Cache bleiben.
+# Überschreibt die Regeln der .htaccess im Wurzelverzeichnis.
+<IfModule mod_headers.c>
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>

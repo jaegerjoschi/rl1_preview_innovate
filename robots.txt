@@ -1,0 +1,23 @@
+User-Agent: *
+Allow: /
+
+User-Agent: GPTBot
+Allow: /
+
+User-Agent: OAI-SearchBot
+Allow: /
+
+User-Agent: ClaudeBot
+Allow: /
+
+User-Agent: PerplexityBot
+Allow: /
+
+User-Agent: Google-Extended
+Allow: /
+
+User-Agent: Applebot-Extended
+Allow: /
+
+Host: https://rl1.network
+Sitemap: https://rl1.network/sitemap.xml
