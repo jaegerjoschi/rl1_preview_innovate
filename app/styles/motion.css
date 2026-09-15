@@ -1,0 +1,426 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MOTION — scroll-gekoppelte Effekte.
+
+   Die Engine (app/components/motion/useScrollProgress.ts) schreibt eine
+   Custom Property --p (0→1) auf jedes [data-scrub]-Element; der
+   Attributwert wählt das Fensterprofil. Alles hier reagiert nur auf --p.
+   Ohne html.scroll-ready (kein JS, reduzierte Bewegung) greift nichts
+   davon und der Endzustand steht.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Erst wenn JS bestätigt hat, dass es wieder aufbauen kann, starten die
+   Scrub-Elemente im Anfangszustand. Andersherum wäre es fatal — ohne
+   Skript bliebe der halbe Text dauerhaft halbtransparent. Gleiche
+   Inversion wie bei .reveal. */
+html.scroll-ready [data-scrub] {
+  --p: 0;
+}
+
+/* ── Story-Bühne ──────────────────────────────────────────────────────
+   Vier Frames auf einer klebenden Bühne. MotionRoot (`stage`) schreibt
+   je Frame die Deckkraft direkt als Inline-Stil (opacity) und --p für
+   den Zeichenaufbau; zwei benachbarte Frames teilen sich dieselbe
+   Blendstrecke, ihre Summe bleibt 1 — deshalb steht zwischen zwei
+   Sätzen nie ein leerer Bildschirm.
+
+   Die Deckkraft lief früher über eine Custom Property --o. Das war
+   messbar teuer, siehe die Begründung an der Regel weiter unten.
+
+   GRUNDZUSTAND IST DAS STAPELN UNTEREINANDER. Ohne JavaScript oder bei
+   reduzierter Bewegung schreibt niemand eine Deckkraft; lägen die
+   Frames dann immer noch absolut übereinander, wären vier Sätze
+   ineinander gedruckt.
+   Erst html.scroll-ready baut die Bühne auf — dieselbe Inversion wie
+   bei .reveal und beim Scrub.                                         */
+.story-stage {
+  min-height: 0;
+}
+
+.story-stage [data-pin] {
+  position: static;
+  height: auto;
+}
+
+.story-stage .story-container {
+  display: block;
+  height: auto;
+}
+
+.story-frame {
+  position: static;
+  opacity: 1;
+  padding-block: 2.5rem;
+}
+
+.story-frame .story-media {
+  position: relative;
+  inset: auto;
+  /* Runde 5: 28svh statt 46vh — „kleiner, gut mit dem Text aligned,
+     beides gemeinsam im Viewport sichtbar". Die Reihenfolge (Bild über
+     Text) steckt in ScrollStorySection.tsx als order-1/-2, nicht hier —
+     diese Regel bestimmt nur noch die Höhe. */
+  height: 28svh;
+}
+
+html.scroll-ready .story-stage {
+  /* Runde 5: 340svh statt 460svh — derselbe Text braucht dadurch gut
+     ein Viertel weniger Scrollweg, ohne die Zeichen-Gewichtung der
+     vier Fenster anzutasten (die ist eine FRAKTION des Gesamtwegs,
+     verkürzt sich also automatisch mit). Zusammen mit dem LEAD in
+     MotionRoot (dort dokumentiert) ist das die Antwort auf „startet zu
+     spät" — kürzerer Gesamtweg UND ein früherer Nullpunkt. */
+  min-height: 340svh;
+}
+
+html.scroll-ready .story-stage [data-pin] {
+  position: sticky;
+  /*
+    Runde 5: klebt UNTER der Navbar (top: var(--spacing-header)), nicht
+    AN ihr (top: 0) — sonst klebt die Fläche zwar in der richtig
+    reduzierten Höhe, aber an der falschen Stelle: ihre eigenen ersten
+    64px liegen dann hinter dem opaken Header verdeckt, und
+    `items-center` im Frame zentriert den Inhalt relativ zu dieser
+    GANZEN (teils verdeckten) Fläche statt relativ zum tatsächlich
+    sichtbaren Fenster. Gemessen war der Inhalt dadurch rund 90px zu
+    tief UND unten blieben rund 155px sichtbar frei — mit dem
+    korrekten top sitzt die Fläche exakt im sichtbaren Rest und
+    zentriert dort auch tatsächlich mittig.
+  */
+  top: var(--spacing-header);
+  height: calc(100svh - var(--spacing-header));
+}
+
+@media (min-width: 48rem) {
+  html.scroll-ready .story-stage [data-pin] {
+    top: var(--spacing-header-md);
+    height: calc(100svh - var(--spacing-header-md));
+  }
+}
+
+html.scroll-ready .story-stage .story-container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+html.scroll-ready .story-frame {
+  position: absolute;
+  inset: 0;
+  padding-block: 0;
+  /*
+    Grundzustand unsichtbar; MotionRoot schreibt die Deckkraft je Frame
+    als Inline-Stil darüber.
+
+    Hier stand `opacity: var(--o, 0)`. Das Ergebnis war dasselbe, der
+    Preis nicht: Custom Properties vererben, --o zu ändern machte also
+    die berechneten Stile aller Zeichen-Spans unter dem Frame ungültig —
+    isoliert gemessen 11,6 ms pro Scroll-Frame für einen Wert, den .char
+    gar nicht liest. Als direkter Inline-Stil sind es 0,04 ms.
+
+    Auf die tatsächliche Bildrate schlägt das nicht durch (Begründung und
+    Messwerte in MotionRoot.tsx). Es ist Aufräumen, kein Gewinn.
+
+    Der Ausfallweg bleibt derselbe wie vorher: ohne JavaScript greift
+    diese Regel nicht (kein html.scroll-ready), und die Frames stehen
+    untereinander statt übereinander. Schreibt JavaScript nichts, bleibt
+    es hier wie zuvor bei 0.
+  */
+  opacity: 0;
+  /* Der unsichtbare Frame darf keine Klicks und keinen Zeiger fangen. */
+  pointer-events: none;
+  will-change: opacity;
+}
+
+@media (min-width: 1024px) {
+  html.scroll-ready .story-frame .story-media {
+    height: 72svh;
+  }
+}
+
+/* ── Story-Bild ───────────────────────────────────────────────────────
+   Blendet mit dem Satz auf und bleibt dann stehen: das Verschwinden
+   übernimmt die Überblendung des ganzen Frames.                       */
+.story-media {
+  /* Weicher Auslauf statt beschnittenem Rechteck — sonst sieht man die
+     Bildkante mitten in der Fläche stehen. */
+  mask-image: var(--mask-soft);
+  -webkit-mask-image: var(--mask-soft);
+}
+
+html.scroll-ready .story-media {
+  opacity: min(calc(var(--p) / 0.2), 1);
+  will-change: opacity;
+}
+
+/* ── Parallax ─────────────────────────────────────────────────────────
+   Je Element ein eigenes --speed. Nur translate3d — compositorfreundlich. */
+html.scroll-ready .parallax {
+  transform: translate3d(
+    0,
+    calc((var(--p) - 0.5) * var(--speed, 0.3) * 40vh),
+    0
+  );
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parallax,
+  .story-media {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+}
+
+/* ── Schwebende Logos ─────────────────────────────────────────────────
+   Zwei Bewegungen in EINEM transform: der Parallax-Versatz am
+   Scrollfortschritt und das Ausweichen vor dem Zeiger. Getrennte
+   transform-Deklarationen würden sich gegenseitig überschreiben.
+
+   Die Transition macht aus den harten Sprüngen des Zeigers eine träge
+   Bewegung — ohne sie klebt das Logo am Cursor und wirkt künstlich. */
+.logo-float {
+  --dodge-x: 0px;
+  --dodge-y: 0px;
+  /* Der Parallax-Versatz liegt als eigene Variable vor, damit es bei ALLEN
+     Zuständen bei genau einem transform bleibt — die -50% zentrieren das
+     Logo auf seiner top/left-Koordinate, und ein zweites transform würde
+     sie wieder wegwerfen. */
+  --lift: 0px;
+  transform: translate3d(
+    calc(-50% + var(--dodge-x)),
+    calc(-50% + var(--dodge-y) + var(--lift)),
+    0
+  );
+  /* 900 ms statt 500, und eine weichere Kurve: das Ausweichen soll als
+     Strömung lesbar sein, nicht als Zucken unter dem Zeiger. */
+  transition: transform 900ms var(--ease-out-soft);
+  will-change: transform;
+}
+
+html.scroll-ready .logo-float {
+  --lift: calc((var(--p) - 0.5) * var(--speed, 0.3) * 30vh);
+}
+
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .logo-float {
+    --dodge-x: 0px;
+    --dodge-y: 0px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-float {
+    transform: translate3d(-50%, -50%, 0) !important;
+  }
+}
+
+/* ── Use-Case-Ring ────────────────────────────────────────────────────
+   Jede Karte bekommt beim Vorbeiziehen einen eigenen Versatz auf der
+   Z-Achse. Die Perspektive sitzt am Ring, nicht an der Karte — sonst
+   hätte jede Karte ihren eigenen Fluchtpunkt und der Ring fiele
+   auseinander.                                                         */
+.usecase-ring {
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
+}
+
+/*
+  Das Zentrieren gehört hierher, nicht an eine Tailwind-Utility:
+  -translate-x-1/2 setzt in Tailwind v4 die eigenständige
+  `translate`-Property, die sich mit `transform` ADDIERT. Beides
+  zusammen verschob jede Karte um eine halbe Kartenbreite.
+*/
+.usecase-slot,
+.usecase-center {
+  transform: translate(-50%, -50%);
+}
+
+html.scroll-ready .usecase-slot {
+  /* Zwei Bewegungen in EINEM transform: Tiefe auf der Z-Achse und ein
+     kleiner Versatz nach oben. Der Textblock in der Mitte läuft langsamer
+     in die Gegenrichtung (siehe .usecase-center) — dadurch schieben sich
+     Karten und Aussage sichtbar gegeneinander, statt als ein Block zu
+     wandern. */
+  transform: translate(-50%, -50%)
+    translateY(calc((var(--p) - 0.5) * var(--depth, 0.5) * -9vh))
+    translateZ(calc((var(--p) - 0.5) * var(--depth, 0.5) * 160px));
+  transition: transform 200ms var(--ease-out-soft);
+  will-change: transform;
+}
+
+html.scroll-ready .usecase-center {
+  transform: translate(-50%, -50%) translateY(calc((var(--p) - 0.5) * 4vh));
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .usecase-slot,
+  .usecase-center {
+    transform: translate(-50%, -50%) !important;
+  }
+}
+
+/* ── Drivers — waagerechter Lauf ──────────────────────────────────────
+   Grundzustand ist ein echter Scroll-Container mit Scroll-Snap: ohne
+   JavaScript und bei reduzierter Bewegung bleibt die Spur bedienbar.
+   Erst html.scroll-ready macht daraus die klebende Bühne, in der --p
+   die Spur nach links zieht.                                          */
+.drivers-track {
+  display: flex;
+  gap: 2.5rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  scroll-snap-type: x mandatory;
+  /* Die Position zeigt der Lauf selbst — die Punktnavigation ist weg. */
+  scrollbar-width: none;
+}
+
+.drivers-track::-webkit-scrollbar {
+  display: none;
+}
+
+html.scroll-ready .drivers-stage {
+  /* Runde 7: 260svh → 520svh. Sechs Karten spielen jetzt streng
+     nacheinander ab (Drivers.tsx, an --p gekoppelt); bei 260svh blieben
+     dafür nur rund 27svh Bühnenzeit je Karte — zu knapp, um die
+     längeren Loop-Animationen (Interoperability 3,2 s, Compliance
+     4,5 s) bei normalem Scrolltempo auch nur einmal durchlaufen zu
+     sehen. 520svh geben jeder Karte reichlich 70svh. */
+  min-height: 520svh;
+}
+
+html.scroll-ready .drivers-pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  min-height: 100svh;
+}
+
+html.scroll-ready .drivers-track {
+  /* Kein Scroll-Container mehr: der Lauf wird gezogen. Bliebe
+     overflow-x auf auto, gäbe es zwei konkurrierende Achsen.
+
+     Runde 8: wieder direkt an --p gekoppelt. Die Zwischenfassung setzte
+     transform per Inline-Style auf die Mitte der jeweils aktiven Karte
+     und hielt sie dort fest, bis deren Animation durch war — beim
+     Scrollen las sich das als Haken. Ohne Transition: die Spur soll dem
+     Finger bzw. dem Rad unmittelbar folgen, jede Übergangszeit wäre
+     hier spürbarer Nachlauf. */
+  overflow: visible;
+  scroll-snap-type: none;
+  width: max-content;
+  transform: translate3d(calc(var(--p, 0) * var(--travel, 0px) * -1), 0, 0);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drivers-track {
+    transform: none !important;
+  }
+}
+
+/* ── Story-Fortschrittsleiste ─────────────────────────────────────────
+   ScrollProgressRail (Runde 5, ersetzt die Punktnavigation StoryNav).
+   Vier Segmente, deren Füllstand nur an --p hängt — dem Fortschritt,
+   den MotionRoot (stage) auf die Sektion schreibt und der an jedes Kind
+   vererbt wird, auch an dieses `position: fixed`-Element (es bleibt im
+   DOM ein Nachfahre der Sektion, auch wenn es visuell aus ihrem Fluss
+   heraustritt). Kein eigener Scroll-Listener nötig.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/*
+  Runde 6: der Button selbst trägt die Klickfläche (etwas breiter als
+  der sichtbare Strich, damit er auch auf Touch triftbar ist, ohne die
+  Leiste optisch zu verbreitern), `.story-rail-track` bleibt die reine
+  Sichtbreite. Segmente sind vertikal ohnehin durch ihre Zeichengewicht-
+  Höhe groß genug — hier geht es nur um die Breite.
+*/
+.story-rail-track-wrap {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  padding-inline: 0.5rem;
+  cursor: pointer;
+}
+
+.story-rail-track {
+  position: relative;
+  width: 0.125rem;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background-color: var(--color-tint-20);
+}
+
+@media (min-width: 48rem) {
+  .story-rail-track {
+    width: 0.1875rem;
+  }
+}
+
+.story-rail-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: top;
+  border-radius: inherit;
+  background-color: var(--color-accent-soft);
+  /*
+    Läuft von 0 auf 1, sobald --p das eigene Fenster [--seg-from,
+    --seg-to] erreicht bzw. verlässt — dieselbe Fensterlogik wie beim
+    Zeichenaufbau in ScrollText, nur pro Segment statt pro Zeichen.
+    clamp() statt min()/max() verschachtelt: die mittlere clamp-
+    Grenze braucht ohnehin schon calc(), ein weiteres min() außenherum
+    wäre nur schwerer zu lesen.
+  */
+  transform: scaleY(
+    clamp(
+      0,
+      calc((var(--p, 0) - var(--seg-from)) / (var(--seg-to) - var(--seg-from))),
+      1
+    )
+  );
+}
+
+/*
+  Blendet vor und nach der Sektion aus. Zwei ineinander verschachtelte
+  clamp()-Rampen über je 8% von --p: die erste steigt von 0→1 am
+  Anfang, die zweite fällt von 1→0 am Ende, min() nimmt die jeweils
+  aktivere. In der Mitte sind beide 1, also bleibt die Leiste voll
+  sichtbar über die gesamte Klebestrecke.
+*/
+.story-rail {
+  opacity: min(
+    clamp(0, calc(var(--p, 0) / 0.08), 1),
+    clamp(0, calc((1 - var(--p, 0)) / 0.08), 1)
+  );
+  transition: opacity 150ms var(--ease-scrub);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-rail {
+    display: none !important;
+  }
+
+  .story-rail-fill {
+    transform: none !important;
+  }
+}
+
+/* ── Story-Frame-CTA ──────────────────────────────────────────────────
+   Der Button im letzten Frame. Klickbar ist er nur, wenn MotionRoot
+   diesen Frame per pointer-events:auto als aktiv markiert hat (siehe
+   dort) — hier steht nur der sichtbare Zustand: derselbe Übergang wie
+   der Zeichenaufbau, damit er nicht VOR dem Satz erscheint.
+*/
+html.scroll-ready .story-frame-cta {
+  /*
+    Runde 8: erscheint erst, wenn der Satz FERTIG aufgebaut ist. Vorher
+    hing die Deckkraft direkt an --p und der Button war von der ersten
+    Zeile an halb sichtbar. Das letzte Zeichen steht bei --p = 0.9 auf
+    voller Deckkraft (--s reicht bis 0.85, mal Faktor 20 in .two-tone
+    .char, siehe globals.css) — ab genau dort läuft der Button auf.
+  */
+  opacity: clamp(0, calc((var(--p, 0) - 0.9) / 0.08), 1);
+  transition: opacity 150ms var(--ease-scrub);
+}

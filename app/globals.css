@@ -1,0 +1,1232 @@
+@import "tailwindcss";
+@import "./styles/motion.css";
+@import "./styles/legal.css";
+
+/* ═══════════════════════════════════════════════════════════════════
+   DESIGN-SYSTEM — einzige Quelle der Wahrheit.
+
+   Drei Regeln, die es ehrlich halten:
+
+   1. Nur dieser @theme-Block enthält Literale — Hex, px-Schriftgrößen,
+      px-Radien, Bezier-Kurven. Nirgends sonst.
+   2. @layer components darf Struktur enthalten (Pseudoelemente,
+      Keyframes, @starting-style), aber jeder WERT ist var(--token).
+   3. TSX nutzt ausschließlich generierte Utilities. Arbiträre Werte
+      wie text-[32px] oder bg-[#1b1b1b] sind verboten.
+
+   Regel 3 prüft `scripts/check-tokens.mjs` bei jedem Build.
+
+   `@theme static` statt `@theme`: Tailwind entfernt sonst jede
+   Theme-Variable, die keine Utility referenziert. Die Verläufe und
+   Dauern werden nur aus @layer components gelesen — ohne `static`
+   verschwänden sie still aus dem Output.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme static {
+  /* ── Flächen ───────────────────────────────────────────────────── */
+  --color-bg: #000000;
+  --color-bg-2: #0a0a0a; /* Scroll-Story-Frames */
+  --color-card-from: #1b1b1b;
+  --color-card-to: #2b2b2b;
+  --color-card-raised: #242424; /* Drivers-Karten */
+  --color-chalk: #d9d9d9; /* Logo-Kacheln, aktiver Dot */
+
+  /* ── Tints — jede weiße Fläche, nie Text ───────────────────────── */
+  --color-tint-05: rgb(255 255 255 / 0.05); /* Eingabefelder */
+  --color-tint-10: rgb(255 255 255 / 0.1); /* Icon-Container */
+  --color-tint-20: rgb(255 255 255 / 0.2); /* Panels: FAQ, Pills */
+  --color-tint-30: rgb(255 255 255 / 0.3); /* Icon-Rahmen, inaktiver Dot */
+  /* Runde 12: die Icon-Kreise auf den hellen Principles-Karten. So hoch,
+     dass sie sich vom B4CFFF-Grund absetzen, ohne als zweite Fläche zu
+     konkurrieren — die Karte bleibt der Ton, der Kreis ist nur Aussparung. */
+  --color-tint-80: rgb(255 255 255 / 0.8);
+
+  /* ── Text — vier Stufen statt sieben Alphawerten ───────────────────
+     --color-ink-3 (0.6) ist die Untergrenze für echten Text. Weiß bei
+     0.5 misst 5,32:1 auf reinem Schwarz, aber nur 4,43:1 auf einem
+     tint-20-Panel — das fällt durch WCAG AA. Deshalb ist ink-ghost
+     ausschließlich der ungelesene Zustand des Zwei-Ton-Texts, der
+     beim Scrollen ohnehin auf 1.0 läuft.                              */
+  --color-ink: #ffffff;
+  --color-ink-2: rgb(255 255 255 / 0.8);
+  --color-ink-3: rgb(255 255 255 / 0.6);
+  --color-ink-ghost: rgb(255 255 255 / 0.5);
+  --color-ink-inverse: #0b0b12; /* auf dem hellen Ende des Periwinkle-Bands */
+
+  /* ── Linien ────────────────────────────────────────────────────── */
+  --color-line: #383838; /* Karten-Rahmen (Figma R2: neutral statt navy) */
+  --color-hairline: rgb(255 255 255 / 0.12); /* Zeilentrenner, Footer */
+
+  /* ── Akzent ────────────────────────────────────────────────────────
+     Runde 10: Marken-Rebrand auf Wunsch des Auftraggebers — #B4CFFF
+     trägt jetzt jeden Button (primary gefüllt, outline umrandet, flat
+     nur Text, siehe Button.tsx) sowie die Akzentfarben im Formular
+     (Fokusring, Checkbox). #B4CFFF ist hell (Luminanz ~0,72) — Text
+     DARAUF (primary) braucht deshalb dunkle Tinte statt Weiß, dafür
+     dient --color-accent-ink jetzt --color-ink-inverse (für genau
+     diesen Fall schon vorgesehen, siehe dessen Kommentar). Text IN
+     #B4CFFF auf schwarzem Grund (outline/flat/Links) liegt dagegen komfortabel
+     über 7:1 (AAA). --color-accent-hover ist ein per color-mix() leicht
+     abgedunkelter Ton für sichtbares (aber nicht flächiges) Hover-
+     Feedback bei Outline/Flat-Buttons.
+
+     --color-accent-soft bleibt unverändert (#6f81b9) — sie trägt keine
+     Buttons/Formulare, sondern ausschließlich Flächen im Netzwerk-
+     Schaubild (Linien, Glow, Kugeln) und ist von diesem Rebrand nicht
+     betroffen. */
+  --color-accent: #b4cfff;
+  --color-accent-hover: color-mix(in srgb, #b4cfff 82%, black);
+  --color-accent-ink: var(--color-ink-inverse);
+  --color-accent-soft: #6f81b9; /* nur nicht-Text: Flächen, Rahmen, Glow, Chart */
+
+  /* ── Akzent als FLÄCHE — #B4CFFF als Grund, nie als Text ───────────
+     Runde 12: Die News-Karten standen auf tint-20, einem neutralen
+     Weiß-Schleier. Sie tragen jetzt den Akzent selbst.
+
+     Die Deckkraft ist gerechnet, nicht geschätzt. #B4CFFF über Schwarz:
+       0.18 → rgb(32 37 46):  text-ink 15,3:1 · text-ink-3 6,4:1
+       0.26 → rgb(47 54 66):  text-ink 12,2:1 · text-ink-3 5,5:1
+     Beide Stufen liegen über dem bisherigen Zustand (tint-20: 12,6/5,7)
+     — und der bisherige HOVER (tint-30) fiel für ink-3 mit 4,28:1 durch
+     WCAG AA. Das ist damit mit behoben.
+
+     0.18 ist zudem exakt der Wert, auf dem `.checkbox:checked` schon
+     steht: EIN Alphawert für „Akzent als Fläche", nicht zwei.
+     Dezimal-RGB statt Hex, weil der Prebuild-Wächter Hex nur in .tsx
+     verbietet — hier ist beides erlaubt, aber die Checkbox macht es
+     bereits so, und zwei Schreibweisen für denselben Ton verwirren. */
+  --color-accent-tint: rgb(180 207 255 / 0.18);
+  --color-accent-tint-hover: rgb(180 207 255 / 0.26);
+
+  /* Runde 12: Icons auf hellem Akzentgrund (Principles-Karten). Eigener,
+     dunklerer Ton als `accent-soft` (#6f81b9) — auf Wunsch des
+     Auftraggebers. Gegen den 80%-weißen Kreis misst er 3,96:1: das hält
+     die 3:1-Grenze für grafische Elemente. Für TEXT wäre er zu schwach —
+     deshalb heißt das Token „icon" und nicht „ink". */
+  --color-accent-icon: #597ab2;
+
+  /* ── Periwinkle-Rampe ──────────────────────────────────────────────
+     Die Marken-Rampe. Seit Runde 2 trägt keine Fläche mehr einen
+     Verlauf daraus (FAQ und CTA stehen auf reinem Schwarz); die
+     Stufen bleiben als dokumentierte Palette und für --color-glow. */
+  --color-peri-100: #c0beea;
+  --color-peri-200: #a3a0ce;
+  --color-peri-300: #8683b2;
+  --color-peri-400: #646192;
+  --color-peri-500: #434159;
+  --color-peri-600: #323143;
+  --color-peri-700: #21212d;
+  --color-peri-800: #111016;
+  --color-peri-900: #08080b;
+  --color-glow: rgb(103 100 140 / 0.28); /* Portrait-Schein */
+
+  /* ── Status ────────────────────────────────────────────────────── */
+  --color-success: #10b981;
+  --color-danger: #ff6b6b;
+
+  /* Rollenfarben des Netzwerk-Schaubilds, Blau nach Lila gestaffelt.
+     NUR für Linien, Ringe, Icon-Kacheln und Punkte — nie als Grund
+     hinter Text: keine davon trägt weiße Schrift mit 4,5:1. */
+  --color-role-members: #6f81b9;
+  --color-role-validators: #7f7ec6;
+  --color-role-observers: #9a7cc8;
+  --color-role-eurosystem: #6f9ad0;
+
+  /* ── Schrift ───────────────────────────────────────────────────────
+     Zwei Familien mit klar getrennten Aufgaben. Ein Schriftwechsel
+     berührt genau zwei Stellen: die next/font-Instanzen in
+     app/lib/fonts.ts und die beiden Tokens hier.
+
+     display  Überschriften und Aussagen. Roboto Condensed läuft rund
+              ein Viertel schmaler als eine normal breite Grotesk —
+              große Schlagzeilen und die Story-Sätze brauchen damit
+              deutlich weniger Zeilen.
+     body     Fließtext, Bedienelemente, Labels.                      */
+  --font-display: var(--font-roboto-condensed), "Arial Narrow", system-ui, sans-serif;
+  --font-body: var(--font-poppins), system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Alias — app/styles/legal.css liest ihn an drei Stellen */
+  --font-sans: var(--font-body);
+
+  /* ── Typo-Skala — Runde 5 ──────────────────────────────────────────
+     War auf der HIG-Leiter bei 375 px verankert (Large Title 34 …
+     Caption 12) — richtig für eine App, zu laut für eine textlastige
+     Website: Sektionen sprengten den Viewport, und weil Poppins eine
+     große, geometrische x-Höhe hat, Roboto Condensed dagegen rund
+     22 % schmaler läuft, las sich der Poppins-Fließtext GRÖSSER als
+     die nominell größere Condensed-Überschrift darüber.
+
+     Runde 5 senkt die 375-px-Basis um ~20 % (Display-Stufen stärker,
+     Lesestufen schwächer) und hält sich an drei recherchierte
+     Untergrenzen:
+       • Formularfelder nie unter 16 px — sonst zoomt iOS Safari beim
+         Fokussieren die ganze Seite hinein (kein Stilthema, ein
+         Bedienfehler). Eigenes, FESTES Token --text-input dafür, das
+         nicht mit der Skala schrumpft.
+       • Fließtext nicht unter 15 px (Material Design 3: Body Medium
+         14sp, Body Large 16sp — 15 px ist die vertretbare Mitte für
+         längere Absätze auf einer Marketingseite).
+       • Nichts unter 12 px (HIG-Untergrenze 11 pt).
+     1440 px bleibt nah am alten Wert; nur die Display-Stufen ziehen
+     dort leicht mit, damit der Sprung zur mobilen Basis nicht wächst.
+
+     Herleitung unverändert: Steigung = (max − min) / 1065 px,
+     Achsenabschnitt = min − Steigung × 375.
+
+     Größe allein löst die Condensed/Poppins-Hierarchie NICHT auf —
+     dafür bräuchte es rund das 1.4-fache zwischen einer Display- und
+     der zugehörigen Lesestufe, aber der Fließtext darf die 15-px-
+     Grenze nicht unterschreiten. Der wirksamere zweite Hebel ist der
+     schwerere Schnitt der Display-Familie (siehe die Basisregel für
+     h1–h4 weiter unten): eine Condensed 500 bei 18 px trägt spürbar
+     mehr als eine Condensed 400 bei 22 px.                           */
+  --text-h1: clamp(1.6875rem, 0.8733rem + 3.474vw, 4rem); /* 27 → 64 */
+  --text-h1--line-height: 1.02;
+  --text-h1--letter-spacing: -0.025em;
+
+  --text-h2: clamp(1.375rem, 1.0229rem + 1.502vw, 2.375rem); /* 22 → 38 */
+  --text-h2--line-height: 1.08;
+  --text-h2--letter-spacing: -0.02em;
+
+  --text-statement: clamp(1.125rem, 0.9049rem + 0.939vw, 1.75rem); /* 18 → 28 */
+  --text-statement--line-height: 1.25;
+  --text-statement--letter-spacing: -0.015em;
+
+  --text-h3: clamp(1.0625rem, 0.9304rem + 0.563vw, 1.4375rem); /* 17 → 23 */
+  --text-h3--line-height: 1.25;
+  --text-h3--letter-spacing: -0.01em;
+
+  --text-lead: clamp(1rem, 0.9339rem + 0.282vw, 1.1875rem); /* 16 → 19 */
+  --text-lead--line-height: 1.45;
+  --text-lead--letter-spacing: -0.005em;
+
+  --text-body-lg: clamp(0.9375rem, 0.8935rem + 0.188vw, 1.0625rem); /* 15 → 17 */
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--letter-spacing: 0em;
+
+  --text-body: clamp(0.9375rem, 0.9155rem + 0.094vw, 1rem); /* 15 → 16 */
+  --text-body--line-height: 1.6;
+  --text-body--letter-spacing: 0em;
+
+  --text-caption: clamp(0.8125rem, 0.7905rem + 0.094vw, 0.875rem); /* 13 → 14 */
+  --text-caption--line-height: 1.6;
+  --text-caption--letter-spacing: 0.005em;
+
+  --text-micro: 0.75rem; /* 12 — HIG-Untergrenze, fest */
+  --text-micro--line-height: 1.5;
+  --text-micro--letter-spacing: 0.01em;
+
+  /* Versalien brauchen bei Poppins deutlich mehr Luft als bei einer
+     Grotesk: die geometrischen Rundungen kleben sonst aneinander. */
+  --text-label-lg: 0.8125rem; /* 13 — Trust-Strip, Story-Eyebrow */
+  --text-label-lg--line-height: 1.3;
+  --text-label-lg--letter-spacing: 0.08em;
+  --text-label-lg--font-weight: 500;
+
+  --text-label: 0.75rem; /* 12 — Karten-Eyebrow, Footer-Spalten */
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0.1em;
+  --text-label--font-weight: 500;
+
+  /* Runde 6: eigene Stufe für die Story-Sätze und den SCE-Absatz auf
+     /about — der Auftraggeber wollte dort Poppins 24 statt Roboto
+     Condensed. Das ist NICHT `--text-statement`: dieses Token trägt
+     auch Resources-Zeilen, Rollentitel und die Special-Tabelle, die
+     alle bei Condensed bleiben. Mobil bleibt es bei 17px (Body-Größe)
+     — flache 24px auf 375px würden den längsten Story-Satz (265
+     Zeichen) wieder aus der Klebefläche drücken (siehe Runde 5). Die
+     Familie kommt automatisch: ohne eigene font-family-Regel (wie bei
+     .text-statement) greift die Basis-Schrift, also Poppins. */
+  --text-prose: clamp(1.0625rem, 0.9085rem + 0.657vw, 1.5rem); /* 17 → 24 */
+  --text-prose--line-height: 1.5;
+  --text-prose--letter-spacing: -0.005em;
+
+  /* Runde 6, bewusste EINZIGE Ausnahme von der 12px-Untergrenze: die
+     Institutionsnamen unter den Logos im Netzwerk-Schaubild. Das ist
+     ein dichtes Datenbild, kein Fließtext — die HIG-Untergrenze liegt
+     bei 11pt, nicht bei 12. Nirgends sonst einsetzen. */
+  --text-nano: 0.6875rem; /* 11 */
+  --text-nano--line-height: 1.3;
+  --text-nano--letter-spacing: 0.02em;
+
+  /* Fest, wächst NICHT mit der Skala: jedes Eingabefeld darunter lässt
+     iOS Safari beim Fokussieren die Seite hineinzoomen — ein
+     Bedienfehler, kein Stilkompromiss. */
+  --text-input: 1rem; /* 16 */
+  --text-input--line-height: 1.5;
+
+
+  /* ── Radien ────────────────────────────────────────────────────────
+     Zeilen sind scharf, Karten sind rund, Eingabefelder sind sm.
+     Scharf ist die Abwesenheit eines Tokens.
+
+     Runde 5: Bedienelemente (Buttons, Chips, Pills) laufen auf die
+     KAPSEL — Apple hat mit iOS 26 durchgängig auf diese Form gestellt,
+     in allen Größen. --radius-sm bleibt für Eingabefelder und
+     Icon-Container: die sind bei Apple gerundete Rechtecke, keine
+     Kapseln — die Kapsel gilt für Gedrücktes, nicht für Gefülltes.  */
+  --radius-xs: 0.25rem; /* Fokusring */
+  --radius-sm: 0.5rem; /* 8 — Eingabefelder, Icon-Container */
+  --radius-md: 1rem; /* 16 — Karten */
+  --radius-lg: 1.5rem; /* 24 — Logo-Kacheln */
+  --radius-control: 9999px; /* Kapsel — Buttons, Chips, Pills */
+  /* DESIGN.md dokumentiert dies längst als Projekt-Token
+     ("Punkte/Porträts") — bisher lief `rounded-full` nur über
+     Tailwinds eingebauten Standardwert mit, ohne eigene Definition
+     hier. Runde 5 braucht ihn zusätzlich außerhalb von Utilities, in
+     handgeschriebenem CSS (.story-rail-track) — dort funktioniert
+     var(--radius-full) nur, wenn der Token wirklich hier steht. */
+  --radius-full: 9999px;
+
+  /* ── Layout ────────────────────────────────────────────────────── */
+  --container-page: 82rem; /* 1312 = Figma-Canvas 1440 − 2 × 64 */
+  --container-narrow: 50rem; /* die px-128-Sektionen des Entwurfs */
+  /* Zeilenlänge für Fließtext. Die HIG nennen 50–75 Zeichen.
+     ACHTUNG: NICHT `prose` nennen — Tailwind bringt ein eingebautes
+     max-w-prose (65ch) mit, das den Token überstimmt. Gemessen ergab
+     das bei Poppins 735 px und 84 Zeichen je Zeile, weil `ch` an der
+     Breite der Null hängt und die bei dieser Schrift deutlich über dem
+     Durchschnitt liegt. 36rem liegt gemessen bei etwa 74. */
+  --container-measure: 36rem;
+
+  --spacing-section: 7.5rem; /* 120 — ersetzt py-120 UND py-128 */
+  --spacing-section-sm: 3rem; /* 48 — Runde 5: dichter, damit eine
+    Sektion mobil wieder in einen Bildschirm passt */
+  --spacing-block: 2rem; /* 32 — Innenabstand jedes Panels */
+
+  /* Höhe der sticky Navbar, INKLUSIVE des neuen Abstands zum oberen
+     Rand (Runde 5, siehe Header.tsx: pt-2 + h-14 bzw. pt-3 + h-20).
+     minHeight="screen" zieht das ab, damit Header + Sektion zusammen
+     exakt 100svh ergeben — sonst ist jede „Bildschirm"-Sektion um die
+     Headerhöhe zu hoch, und der Nutzer muss diesen Rest zusätzlich
+     wegscrollen, bevor die nächste Sektion wirklich ansteht. */
+  --spacing-header: 4rem; /* 64 = pt-2 (8) + h-14 (56) */
+  --spacing-header-md: 5.75rem; /* 92 = pt-3 (12) + h-20 (80) */
+
+  /* ── Bewegung ──────────────────────────────────────────────────────
+     Kein ease-in. Es startet langsam — genau in dem Moment, in dem
+     der Nutzer am genauesten hinsieht — und wirkt träge.
+     Scrollgekoppelte Bewegung wird NIE geeast: Easing lässt sie dem
+     Finger hinterherhinken.                                           */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-soft: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-hover: ease;
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-scrub: linear;
+
+  --dur-fast: 150ms; /* Hover, Farbwechsel */
+  --dur-base: 220ms; /* Accordion, Panel */
+  --dur-slow: 420ms; /* Reveal */
+
+  --shadow-glow: 0 0 34px 13px var(--color-glow);
+  /* Die obere Lichtkante, die eine Karte als Metall lesbar macht */
+  --shadow-card: inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+
+  /* ── Verläufe — nur aus @layer components konsumiert ───────────── */
+  --gradient-card: linear-gradient(
+    180deg,
+    var(--color-card-from),
+    var(--color-card-to)
+  );
+
+  /* Verchromt: eine anisotrope Metall-Lackierung (schräger Verlauf mit
+     zwei hellen Bahnen) und darüber eine vertikale Lichtkante oben und
+     unten — so liest das Auge eine gebürstete Fläche statt einer
+     Farbfläche. */
+  --gradient-chrome:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.14) 0%,
+      rgb(255 255 255 / 0.03) 16%,
+      rgb(255 255 255 / 0) 44%,
+      rgb(255 255 255 / 0.04) 74%,
+      rgb(255 255 255 / 0.11) 100%
+    ),
+    linear-gradient(
+      105deg,
+      #2a2d33 0%,
+      #191b1f 26%,
+      #383c44 47%,
+      #17191d 63%,
+      #2e3238 100%
+    );
+  --shadow-chrome:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.18),
+    0 10px 30px -8px rgb(0 0 0 / 0.6);
+
+  --gradient-vignette: radial-gradient(
+    closest-side,
+    transparent 35%,
+    var(--color-bg) 100%
+  );
+
+  /* Hero: oben/unten in Schwarz auslaufen, und die linke Spalte
+     abdunkeln, damit die Überschrift auf near-black sitzt, während
+     die Schienen-Grafik rechts sichtbar bleibt. */
+  --gradient-hero-veil: linear-gradient(
+    180deg,
+    var(--color-bg) 0%,
+    transparent 18%,
+    transparent 78%,
+    var(--color-bg) 100%
+  );
+  --gradient-hero-side: linear-gradient(
+    90deg,
+    var(--color-bg) 0%,
+    rgb(0 0 0 / 0.55) 42%,
+    transparent 74%
+  );
+  /* Schmale Viewports. Runde 8: das Motiv liegt wieder HINTER dem Text
+     (siehe .hero-media-sm), also muss der Scrim auch wieder tragen —
+     der Text steht mittig auf dem hellsten Teil des Würfels. Ein
+     seitlicher Verlauf wie am Desktop hilft auf 375 px nicht (die
+     Textspalte ist so breit wie das Bild), deshalb ein flächiger
+     Schleier, oben und unten etwas dichter als in der Mitte: dort sitzt
+     der Text, in der Mitte bleibt das Motiv am besten sichtbar. */
+  /* Runde 8: nachgemessen statt geschätzt. Mit 0.72/0.58/0.72 lag der
+     Fließtext (--color-ink-2, 80 % Weiß) über der hellsten Stelle des
+     Motivs bei 5,07:1 — AA bestanden, aber knapp. Mit diesen Werten
+     sind es 7:1+ (AAA für Fließtext), die Überschrift liegt bei über
+     11:1, und das Motiv ist wie gewünscht sichtbar dunkler. */
+  --gradient-hero-side-sm: linear-gradient(
+    180deg,
+    rgb(0 0 0 / 0.82) 0%,
+    rgb(0 0 0 / 0.7) 45%,
+    rgb(0 0 0 / 0.82) 100%
+  );
+
+  /* Blendet den Bildstreifen oben und unten aus, damit er keine Kante
+     gegen die schwarze Fläche und die Folgesektion setzt. */
+  --mask-hero-sm: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 24%,
+    #000 76%,
+    transparent 100%
+  );
+  /* Weicher Auslauf nach allen Seiten — damit von den Story-Bildern
+     keine Rechteckkante zu sehen ist. */
+  /* Muss das Bildfeld VOLLSTÄNDIG umschließen, sonst steht eine Kante.
+     Bei 85 % waagerechtem Radius lag die rechte Bildkante erst bei
+     71 % des Verlaufs — dort ist er noch zu einem Fünftel deckend, und
+     genau das sah man. Bei 60 % liegt sie bei 83 % und damit im
+     auslaufenden Teil. */
+  --mask-soft: radial-gradient(
+    60% 66% at 50% 50%,
+    #000 0%,
+    #000 26%,
+    rgb(0 0 0 / 0.7) 52%,
+    rgb(0 0 0 / 0.22) 74%,
+    transparent 92%
+  );
+
+  --gradient-edge-fade: linear-gradient(
+    to right,
+    transparent 0%,
+    rgb(0 0 0 / 0.15) 6%,
+    rgb(0 0 0 / 0.6) 12%,
+    black 18%,
+    black 82%,
+    rgb(0 0 0 / 0.6) 88%,
+    rgb(0 0 0 / 0.15) 94%,
+    transparent 100%
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BASIS — bewusst kurz. Alles Weitere gehört in Komponenten.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  html {
+    /* Gilt nur für Ankersprünge, nicht fürs Rad- oder Trackpad-Scrollen.
+       Letzteres bleibt nativ und folgt der Eingabe 1:1 — hier lief vorher
+       Lenis dazwischen, was sich träge anfühlte. */
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    /* Der Fließtext der Seite. Ohne diese Zeile erbt alles ohne
+       eigene text-*-Klasse die 16 px des Browsers statt der 17 px,
+       die die HIG als Body nennen. */
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+    Überschriften tragen die Display-Familie — und einen Schnitt, der
+    sich mit der Größe ändert.
+
+    Auf schwarzem Grund wirkt jede Schrift dünner, als sie ist
+    (Irradiation), und die HIG sagen dasselbe aus der anderen Richtung:
+    kleinere Schrift, schwererer Schnitt. Roboto Condensed 300 trägt
+    bei 72 px; bei den 28 px, auf die h2 auf einem Telefon fällt, wird
+    daraus ein Drahtgestell. Deshalb steht der Schnitt hier und nicht
+    starr im Größen-Token.
+  */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    /* Runde 5: 500 statt 400. Die Skala fiel um ~20% (siehe die
+       Typo-Skala oben) — bei den kleineren Größen kippte sonst die
+       Hierarchie: Roboto Condensed läuft schmal und Poppins hat eine
+       große x-Höhe, wodurch der Fließtext GRÖSSER wirkte als die
+       nominell größere Condensed-Überschrift darüber. Größe allein
+       hätte das nicht gelöst, ohne den Fließtext unter 15px zu
+       drücken — der schwerere Schnitt ist der Hebel, der trägt. */
+    font-weight: 500;
+    text-wrap: balance;
+  }
+
+  @media (min-width: 48rem) {
+    h1,
+    h2 {
+      /* War 300: Runde 5 senkt gleichzeitig die Desktop-Obergrenze der
+         Skala (h1 72→64, h2 44→38) — bei den jetzt kleineren
+         Größenspannen trägt 300 nicht mehr durchgängig. 400 bleibt
+         die Basis, bis 500 mobil greift. */
+      font-weight: 400;
+    }
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Sichtbarer Fokus — nie entfernen, nur gestalten */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-hover);
+    outline-offset: 3px;
+    border-radius: var(--radius-xs);
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  /* Bilder und Videos halten ihren Platz frei → kein Layout-Sprung */
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   KOMPONENTEN — nur was Utilities nicht ausdrücken können.
+   Jeder Wert hier ist var(--token). Bewegung: nur transform/opacity;
+   height/margin/top erzwingen Neu-Layouts und ruckeln.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/*
+  Grundzustand ist SICHTBAR. Versteckt wird erst, wenn ein Inline-Skript
+  im <head> `reveal-ready` gesetzt hat. Ohne JavaScript, bei gedrosseltem
+  Hintergrund-Tab oder wenn der Observer nichts liefert, sieht man die
+  Seite ohne Animation — nie eine leere Seite.
+*/
+@layer components {
+  .reveal,
+  .reveal-line {
+    opacity: 1;
+    transform: none;
+  }
+
+  html.reveal-ready .reveal:not(.is-revealed),
+  html.reveal-ready :not(.is-revealed) > .reveal-line {
+    opacity: 0;
+    /* Runde 7: --reveal-y erlaubt einzelnen Stellen (z. B. Quote.tsx) ein
+       deutlicheres Einfaden, ohne den Rest der Seite anzufassen — Default
+       bleibt der bisherige Wert. */
+    transform: translate3d(0, var(--reveal-y, 10px), 0);
+  }
+
+  html.reveal-ready :not(.is-revealed) > .reveal-line {
+    transform: translate3d(0, 0.6em, 0);
+  }
+
+  /* Runde 7: deutlicheres Einfaden für einzelne Stellen (aktuell nur
+     Quote.tsx) — größerer Weg statt der siteweiten 10px. Eigene Klasse
+     statt eines Props an Reveal, dasselbe Muster wie .flow-line--v-thick. */
+  .reveal--strong {
+    --reveal-y: 1.5rem;
+  }
+
+  html.reveal-ready .reveal,
+  html.reveal-ready .reveal-line {
+    transition:
+      opacity var(--dur-slow) var(--ease-out-expo),
+      transform var(--dur-slow) var(--ease-out-expo);
+    transition-delay: calc(var(--i, 0) * 40ms);
+  }
+
+  html.reveal-ready .is-revealed > .reveal-line {
+    transition-delay: calc(var(--i, 0) * 55ms);
+  }
+}
+
+/* Fonts noch nicht da? Dann nicht animieren — sonst zappelt der Text. */
+html:not(.fonts-ready) .reveal,
+html:not(.fonts-ready) .reveal-line {
+  transition: none !important;
+}
+
+/* ── Scroll-Text ────────────────────────────────────────────────────
+   <ScrollText> gibt je Wort ein <span class="word"> aus und darin je
+   Zeichen ein <span class="char"> mit --s (Startpunkt 0–1). --p (0–1)
+   kommt von der Scroll-Engine an den Container.
+
+   Struktur und Grundzustand folgen der Referenz (sharplink.com/about).
+   Das Wort ist nur die Umbruch-Einheit — animiert wird das Zeichen.
+
+   Default für --p ist 1: ohne JavaScript steht der ganze Satz sichtbar. */
+@layer components {
+  /*
+    Der Default für --p liegt am <html>, nicht an .two-tone. Stünde er
+    am Textelement, würde er den Wert überschreiben, den eine klebende
+    Sektion vererbt — und der Scrub liefe nie an. Am Wurzelelement
+    greift er nur, solange niemand anders einen Wert setzt: ohne
+    JavaScript bleibt damit jedes Zeichen sichtbar.
+  */
+  html {
+    --p: 1;
+  }
+
+  .two-tone .word {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .two-tone .char {
+    /* Multiplikator 20 hält das Übergangsband eng: rund elf Zeichen
+       sind gleichzeitig unterwegs, also etwa zwei Wörter. Ein kleinerer
+       Wert lässt den ganzen Absatz gleichmäßig aufhellen, statt eine
+       sichtbare Kante durch den Satz zu schicken.
+       --s reicht bis 0.85, damit die Kante fast den ganzen Scrollweg
+       nutzt — und (1 − 0.85) × 20 = 3 sichert, dass auch das letzte
+       Zeichen bei --p = 1 auf 1.0 steht. */
+    opacity: clamp(0.28, (var(--p) - var(--s, 0)) * 20, 1);
+    /* Glättet nur die Sprünge zwischen zwei rAF-Frames — kurz genug,
+       dass die Kante scharf bleibt. */
+    transition: opacity 120ms var(--ease-scrub);
+  }
+}
+
+/* ── Display-Stufen auf Nicht-Überschriften ────────────────────────
+   h1–h4 bekommen die Display-Familie über die Basisregel. `statement`
+   ist ebenfalls eine Display-Stufe, steht aber auf <p> — etwa bei den
+   Story-Sätzen und dem SCE-Absatz. Die Familie hängt deshalb an der
+   Stufe selbst, statt an jeder einzelnen Fundstelle zu kleben.
+   Die Utility setzt nur Größe, Zeilenhöhe und Laufweite; die Familie
+   von hier bleibt also stehen.                                        */
+@layer components {
+  .text-statement {
+    font-family: var(--font-display);
+    font-weight: 500; /* Runde 5 — siehe die Schnittregel für h1–h4 */
+  }
+}
+
+/* ── Metall-Karte ──────────────────────────────────────────────────
+   Der Verlauf und die obere Lichtkante. Die Neigung setzt <MetalCard>
+   per --mx/--my; hier nur der Ruhezustand und die Glanzfläche.        */
+@layer components {
+  .card-metal {
+    --mx: 0.5;
+    --my: 0.5;
+    position: relative;
+    background-image: var(--gradient-chrome);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-chrome);
+    transition: transform var(--dur-base) var(--ease-out-soft);
+  }
+
+  .card-metal::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+      rgb(255 255 255 / 0.1),
+      transparent 60%
+    );
+    transition: opacity var(--dur-base) var(--ease-hover);
+  }
+
+  @media (hover: hover) {
+    /* Kippt nach HINTEN statt sich zum Zeiger zu neigen — die Karte
+       legt sich weg, wie eine Metallplatte, die man anhebt. */
+    .card-metal:hover {
+      transform: perspective(900px) rotateX(-6deg);
+    }
+
+    .card-metal:hover::after {
+      opacity: 1;
+    }
+  }
+}
+
+/* ── Accordion — Höhe über grid-template-rows, die eine Ausnahme ──────
+   von der reinen transform/opacity-Regel. Region bleibt im DOM.        */
+@layer components {
+  .acc-region {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows var(--dur-base) var(--ease-panel),
+      opacity 150ms var(--ease-out-expo);
+  }
+
+  .acc-region[data-open="true"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    /* Inhalt kommt einen Tick nach der Höhe — sonst sieht man ihn
+       gegen die noch wachsende Kante laufen. */
+    transition-delay: 0ms, 60ms;
+  }
+}
+
+/* ── Kontrollkästchen ─────────────────────────────────────────────────
+   Die Vorgabe des Browsers füllt das Kästchen im angehakten Zustand
+   flächig — auf dunklem Grund ein weißer Klotz. `accent-color` ändert
+   nur die Füllfarbe, nicht das Prinzip. Deshalb selbst gezeichnet:
+   transparenter Grund, Rand in Akzentfarbe, Haken als Maske.          */
+@layer components {
+  .checkbox {
+    appearance: none;
+    flex-shrink: 0;
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 1px solid var(--color-tint-30);
+    border-radius: var(--radius-xs);
+    background-color: transparent;
+    transition:
+      border-color var(--dur-fast) var(--ease-hover),
+      background-color var(--dur-fast) var(--ease-hover);
+  }
+
+  @media (hover: hover) {
+    .checkbox:hover {
+      border-color: var(--color-accent-hover);
+    }
+  }
+
+  .checkbox:checked {
+    border-color: var(--color-accent-hover);
+    /* Kein flächiges Weiß: ein Haken, gezeichnet als Maske über der
+       Akzentfarbe. Farbwerte hier sind hartkodiert (rgb()-Literal +
+       Data-URI-Stroke lassen sich nicht per var() füllen) — Runde 10
+       auf #B4CFFF nachgezogen, damit die Checkbox dem neuen Akzent-Token
+       oben folgt statt am alten #6f81b9 hängenzubleiben. */
+    background-color: rgb(180 207 255 / 0.18);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23B4CFFF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+  }
+}
+
+/* ── Hero-Scrim — die gestapelten Verlaufsmasken über dem Bild ─────── */
+@layer components {
+  .hero-scrim::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: var(--gradient-hero-side-sm);
+  }
+
+  /* Runde 8: auch auf schmalen Schirmen liegt das Motiv wieder HINTER
+     dem Text, randlos über die ganze Sektion — der Text steht mittig
+     darauf (Hero.tsx / AboutHero.tsx: flex + items-center). Runde 5 bis 7
+     hatten es stattdessen als eigene Grid-Zeile UNTER den Text gestellt;
+     der Auftraggeber will die überlagerte Fassung.
+     Damit der Text lesbar bleibt, dunkelt --gradient-hero-side-sm jetzt
+     wieder flächig ab (siehe dort) statt nur den Stoßrand zu nehmen.
+     Die weiche Maske oben/unten bleibt mobil: sie nimmt dem Bild die
+     harte Kante gegen die Folgesektion. */
+  .hero-media-sm {
+    position: absolute;
+    inset: 0;
+    mask-image: var(--mask-hero-sm);
+    -webkit-mask-image: var(--mask-hero-sm);
+  }
+
+  @media (min-width: 48rem) {
+    .hero-scrim::after {
+      background-image: var(--gradient-hero-side), var(--gradient-hero-veil);
+    }
+
+    .hero-media-sm {
+      height: auto;
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+
+    /* /about: das Motiv steht hinter dem Text, nicht daneben. Es ist
+       deshalb eingerückt (kleiner) und trägt einen zweiten, kräftigeren
+       Schleier — sonst konkurriert es mit der Überschrift. */
+    .about-hero .hero-media-sm {
+      inset: 6% -4% 6% 18%;
+      mask-image: var(--mask-soft);
+      -webkit-mask-image: var(--mask-soft);
+    }
+
+    .about-hero::after {
+      background-image: var(--gradient-hero-side), var(--gradient-hero-veil),
+        linear-gradient(90deg, rgb(0 0 0 / 0.5) 0%, rgb(0 0 0 / 0.2) 55%, transparent 85%);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOGOBAND — durchlaufender Streifen der beteiligten Institute.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .marquee {
+    mask-image: var(--gradient-edge-fade);
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee-scroll 130s linear infinite;
+  }
+
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+
+  .marquee-group {
+    display: flex;
+    align-items: center;
+    gap: 3.5rem; /* 56px — enger als im Entwurf, weil die Marken größer sind */
+    padding-right: 3.5rem;
+  }
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    mask-image: none;
+  }
+
+  .marquee-track {
+    animation: none;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .marquee-group:last-child {
+    display: none;
+  }
+
+  .marquee-group {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    padding-right: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUFKLAPPENDE FLÄCHEN — Dropdown und Mobilmenü.
+   Beide bleiben im DOM und werden per data-open geschaltet, damit
+   auch das Schließen animiert. `allow-discrete` erlaubt die
+   Überblendung trotz display:none, `@starting-style` liefert den
+   Startzustand. Wo der Browser das nicht kennt, erscheint die Fläche
+   ohne Animation — nichts geht kaputt.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .pop {
+    display: none;
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+    transform-origin: top left;
+    transition:
+      opacity var(--dur-base) var(--ease-out-expo),
+      transform var(--dur-base) var(--ease-out-expo),
+      display var(--dur-base) allow-discrete;
+  }
+
+  .pop[data-open="true"] {
+    display: block;
+    opacity: 1;
+    transform: none;
+
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.96) translateY(-4px);
+    }
+  }
+
+  .panel {
+    display: none;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition:
+      opacity var(--dur-base) var(--ease-panel),
+      transform var(--dur-base) var(--ease-panel),
+      display var(--dur-base) allow-discrete;
+  }
+
+  .panel[data-open="true"] {
+    display: block;
+    opacity: 1;
+    transform: none;
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop,
+  .panel {
+    transform: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BARRIEREFREIHEIT — respektiert die Systemeinstellung des Besuchers.
+   Inhalt bleibt sichtbar, nur die Bewegung entfällt.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html.reveal-ready .reveal,
+  html.reveal-ready .reveal-line,
+  html.reveal-ready .reveal:not(.is-revealed),
+  html.reveal-ready :not(.is-revealed) > .reveal-line {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .two-tone {
+    --p: 1 !important;
+  }
+
+  .card-metal {
+    transform: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DATENSTRÖME — die Verbindungen im Netzwerkdiagramm.
+
+   Bewusst CSS statt SVG: eine gestreckte SVG-Matrix erzeugt ungleich
+   lange Striche, und die Animation liefe über den Hauptthread. Hier
+   wandert nur eine background-position — das macht der Compositor.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .flow-line {
+    position: relative;
+    display: block;
+    flex: 1 1 auto;
+    background-image: repeating-linear-gradient(
+      var(--flow-angle, 90deg),
+      var(--flow-color, var(--color-accent-soft)) 0 4px,
+      transparent 4px 10px
+    );
+    background-size: 10px 10px;
+    opacity: 0.45;
+    animation: flow-dash 900ms linear infinite;
+  }
+
+  .flow-line--h {
+    height: 1px;
+    min-width: 2rem;
+  }
+
+  .flow-line--v {
+    --flow-angle: 180deg;
+    /* Nicht mitwachsen: .flow-line trägt flex: 1 1 auto für die
+       waagerechten Stränge. In einer Flex-ZEILE streckte das die
+       senkrechte Variante quer über die ganze Breite — aus dem Strang
+       wurde ein Balken. */
+    flex: none;
+    /* Runde 5: 2px statt 1px — „Pfeile dicker" (Governance-Diagramm,
+       dessen Pfeilspitze denselben Strang trägt). */
+    width: 0.125rem;
+    min-height: 3rem;
+    animation-name: flow-dash-v;
+  }
+
+  /* Runde 6: nochmals dicker, aber NUR für Governance — der Wunsch galt
+     ausdrücklich den Pfeilen dort, nicht dem gerade neu gebauten und
+     gemessenen Netzwerk-Schaubild, das denselben .flow-line--v-Strang
+     für seinen Steg zur dritten Rolle mitbenutzt. Ein eigener Modifier
+     statt die Basisklasse zu erhöhen, damit diese Änderung dort nicht
+     ungeprüft mitläuft. */
+  .flow-line--v-thick {
+    width: 0.1875rem;
+  }
+
+  /* ── Fließende Kugel (Runde 5, Netzwerk-Schaubild) ─────────────────
+     Ein zusätzlicher Punkt, der über die Linie läuft — wie bei der
+     alten Ecosystem-Sektion (Kreise, die per translateX/Y über feste
+     SVG-Linien wanderten). Hier in Prozent statt Pixeln: eine Linie
+     ist mal 40px lang (mobile Kette), mal 200px (Desktop-Kreuz), und
+     die Kugel muss in JEDEM Fall exakt von einem Ende zum anderen
+     laufen, nicht um einen festen Pixelbetrag. */
+  .flow-ball {
+    position: absolute;
+    z-index: 1;
+    width: 0.3125rem;
+    height: 0.3125rem;
+    border-radius: var(--radius-full);
+    background-color: var(--flow-color, var(--color-accent-soft));
+    opacity: 0;
+  }
+
+  .flow-ball--h {
+    top: 50%;
+    left: 0%;
+    translate: 0 -50%;
+    animation: flow-ball-h 1.8s ease-in-out infinite;
+  }
+
+  .flow-ball--v {
+    left: 50%;
+    top: 0%;
+    translate: -50% 0;
+    animation: flow-ball-v 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes flow-ball-h {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes flow-ball-v {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-ball {
+    display: none;
+  }
+}
+
+/* Die beiden Ringe um die Nabe atmen leicht — dieselbe Idee wie die
+   laufenden Punkte auf den Linien: das Netz wirkt in Betrieb, nicht
+   abgebildet. */
+.hub-ring {
+  animation: hub-pulse 3.2s ease-in-out infinite;
+}
+
+.hub-ring--wide {
+  animation-delay: 1.1s;
+}
+
+@keyframes hub-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-ring {
+    animation: none;
+  }
+}
+
+@keyframes flow-dash {
+  to {
+    background-position: 10px 0;
+  }
+}
+
+@keyframes flow-dash-v {
+  to {
+    background-position: 0 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-line {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PREVIEW ACCESS GATE — nur für interne Team-Previews (GitHub Pages),
+   kein Ersatz für echten Zugriffsschutz.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.pgOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #03040d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pgCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 52px 48px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 380px;
+  animation: pgFadeIn 0.5s ease;
+}
+
+@keyframes pgFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pgLabel {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.pgForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.pgInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  color: #fff;
+  outline: none;
+  text-align: center;
+  letter-spacing: 0.2em;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.pgInput:focus {
+  border-color: rgba(59, 111, 255, 0.6);
+}
+
+.pgInput--error {
+  border-color: rgba(239, 68, 68, 0.7) !important;
+  animation: pgShake 0.35s ease;
+}
+
+@keyframes pgShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  60% {
+    transform: translateX(6px);
+  }
+}
+
+.pgBtn {
+  width: 100%;
+  padding: 12px 16px;
+  background: #3b6fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.pgBtn:hover {
+  background: #4f7fff;
+}
+
+.pgError {
+  font-size: 12px;
+  color: rgba(239, 68, 68, 0.8);
+  margin: 0;
+  letter-spacing: 0.04em;
+}

@@ -1,0 +1,334 @@
+/*
+  "Our Values" — sechs Karten, sechs Animationen, eine Bildsprache.
+  Quadrat = Mitglied, Linie = gemeinsame Schiene, Halbkreis = Regelwerk
+  darüber. Reine Strichzeichnung, nur Größe/Abstand/Farbe/Deckkraft
+  bewegen sich, nie Rotation oder Pfad.
+
+  Bewusst NICHT in app/styles/motion.css: das sind Section-lokale
+  Illustrations-Tokens (Formensprache, keine Text-Kontrastwerte), keine
+  globalen Theme-Farben — deshalb eine eigene Datei, importiert direkt in
+  Drivers.tsx statt über globals.css.
+
+  Ruhezustand ist immer statisch: alles unten hängt an `.is-active` auf
+  `.value-card`, gesetzt per IntersectionObserver beim seitlichen Scrollen
+  durch die Spur (siehe Drivers.tsx) — nicht auf Hover. Nichts läuft von
+  allein, und nichts reagiert auf Maus-Hover.
+*/
+
+.values {
+  --stage: #000000;
+  --fill: var(--stage);
+  --stroke: rgba(255, 255, 255, 0.42);
+  --rail: rgba(255, 255, 255, 0.18);
+  --strong: #ffffff;
+  --ease: cubic-bezier(0.45, 0, 0.18, 1);
+}
+
+.values .stage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/*
+  Runde 11: „eine Animation nach der anderen, nicht mehrere gleichzeitig."
+
+  Aktiv ist ohnehin immer nur EINE Karte (Drivers.tsx setzt `.is-active`
+  exklusiv). Sichtbar liefen trotzdem mehrere Bewegungen parallel, aus
+  zwei Gründen:
+    1. Die gerade verlassene Karte spielte ihre 1000–1150ms-Transition
+       RÜCKWÄRTS ab, während die neue vorwärts lief.
+    2. Karte 4 und 6 tragen Endlos-Loops (pktRun, beat, csFail), die
+       weiterliefen, solange die Karte im Blick blieb.
+
+  Diese eine Regel löst beides: eine Karte ohne `.is-active` hat weder
+  Transition noch Animation — sie springt beim Verlassen sofort in den
+  Ruhezustand und ihre Loops stehen still. Es bewegt sich damit immer nur
+  die aktive Karte.
+
+  Bewusst KEIN Timer-Gating („erst abspielen, dann weiterscrollen"): das
+  stand in Runde 8 schon einmal hier und ist wieder entfernt worden, weil
+  es das Scrollen spürbar blockierte (siehe Kommentar in Drivers.tsx).
+*/
+.value-card:not(.is-active) * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.sq {
+  fill: var(--fill);
+  stroke: var(--stroke);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+.rail {
+  stroke: var(--rail);
+  stroke-width: 2;
+  stroke-linecap: square;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.dm {
+  fill: var(--fill);
+  stroke: var(--stroke);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+.dm-line {
+  fill: none;
+  stroke: var(--stroke);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+use,
+.tf,
+.pkt {
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+
+/* Karte 1 — Trust: nur Deckkraft, räumlich passiert nichts */
+.t-fill {
+  opacity: 1;
+  transition: opacity 1100ms var(--ease);
+}
+.value-card.is-active .t-fill {
+  opacity: 0;
+}
+
+/* Karte 2 — Neutrality: Größe und Abstand gleichzeitig */
+.n1,
+.n2,
+.n3,
+.n4 {
+  transition: transform 1000ms var(--ease);
+}
+.n1 {
+  transform: translate(56px, 120px) scale(1.05);
+}
+.n2 {
+  transform: translate(104px, 120px) scale(0.55);
+}
+.n3 {
+  transform: translate(158px, 120px) scale(0.85);
+}
+.n4 {
+  transform: translate(207px, 120px) scale(0.65);
+}
+.value-card.is-active .n1 {
+  transform: translate(63px, 120px) scale(0.8);
+}
+.value-card.is-active .n2 {
+  transform: translate(108px, 120px) scale(0.8);
+}
+.value-card.is-active .n3 {
+  transform: translate(152px, 120px) scale(0.8);
+}
+.value-card.is-active .n4 {
+  transform: translate(197px, 120px) scale(0.8);
+}
+
+/* Karte 3 — Autonomy: nur der Abstand, die Quadrate bleiben unverändert */
+.a1,
+.a2 {
+  transition: transform 1150ms var(--ease);
+}
+.a1 {
+  transform: translate(98px, 120px) scale(0.8);
+}
+.a2 {
+  transform: translate(162px, 120px) scale(0.8);
+}
+.value-card.is-active .a1 {
+  transform: translate(64px, 120px) scale(0.8);
+}
+.value-card.is-active .a2 {
+  transform: translate(196px, 120px) scale(0.8);
+}
+
+/* Karte 4 — Interoperability: Farbwert auf der Schiene (Loop) */
+.i-mid {
+  transition: stroke 650ms var(--ease);
+}
+.value-card.is-active .i-mid {
+  stroke: var(--strong);
+}
+
+.pkt {
+  transform: translate(88px, 120px);
+  opacity: 0;
+}
+.pkt rect {
+  fill: var(--strong);
+  stroke: var(--strong);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.value-card.is-active .pkt {
+  animation: pktRun 3.2s ease-in-out infinite;
+}
+.value-card.is-active .pkt rect {
+  animation: pktTone 3.2s ease-in-out infinite;
+}
+
+@keyframes pktRun {
+  0% {
+    transform: translate(88px, 120px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(172px, 120px);
+  }
+  90% {
+    transform: translate(88px, 120px);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(88px, 120px);
+    opacity: 0;
+  }
+}
+@keyframes pktTone {
+  0%,
+  12% {
+    fill: var(--strong);
+  }
+  38%,
+  62% {
+    fill: var(--stage);
+  }
+  88%,
+  100% {
+    fill: var(--strong);
+  }
+}
+
+/* Karte 5 — Cooperation: Größe des Halbkreises */
+.co1,
+.co2,
+.co3,
+.co4,
+.co-dome {
+  transition:
+    transform 1000ms var(--ease),
+    opacity 1000ms var(--ease);
+}
+.co1 {
+  transform: translate(82px, 120px) scale(0.7);
+}
+.co2 {
+  transform: translate(124px, 120px) scale(0.7);
+}
+.co3 {
+  transform: translate(166px, 120px) scale(0.7);
+}
+.co4 {
+  transform: translate(240px, 120px) scale(0.7);
+  opacity: 0;
+}
+.co-dome {
+  transform: translate(124px, 120px) scale(0.67);
+}
+
+.value-card.is-active .co1 {
+  transform: translate(72px, 120px) scale(0.7);
+}
+.value-card.is-active .co2 {
+  transform: translate(114px, 120px) scale(0.7);
+}
+.value-card.is-active .co3 {
+  transform: translate(156px, 120px) scale(0.7);
+}
+.value-card.is-active .co4 {
+  transform: translate(198px, 120px) scale(0.7);
+  opacity: 1;
+}
+.value-card.is-active .co-dome {
+  transform: translate(135px, 120px) scale(0.88);
+}
+
+/* Karte 6 — Compliance & Security: Takt plus Ausfall einer Verbindung (Loop) */
+.cs-outer,
+.cs-inner {
+  opacity: 0.3;
+}
+.value-card.is-active .cs-outer {
+  animation: beat 1.5s linear infinite;
+}
+.value-card.is-active .cs-inner {
+  animation: beat 1.5s linear infinite;
+  animation-delay: 0.26s;
+}
+@keyframes beat {
+  0% {
+    opacity: 1;
+    stroke: var(--strong);
+  }
+  24% {
+    opacity: 0.28;
+    stroke: var(--stroke);
+  }
+  100% {
+    opacity: 0.28;
+    stroke: var(--stroke);
+  }
+}
+
+.cs-main,
+.cs-by {
+  transition:
+    stroke 500ms ease,
+    opacity 500ms ease;
+}
+.value-card.is-active .cs-main {
+  animation: csFail 4.5s ease-in-out infinite;
+}
+.value-card.is-active .cs-by {
+  animation: csBy 4.5s ease-in-out infinite;
+}
+@keyframes csFail {
+  0%,
+  44% {
+    stroke: var(--strong);
+    opacity: 0.8;
+  }
+  58%,
+  72% {
+    stroke: var(--rail);
+    opacity: 0.18;
+  }
+  86%,
+  100% {
+    stroke: var(--strong);
+    opacity: 0.8;
+  }
+}
+@keyframes csBy {
+  0%,
+  44% {
+    stroke: var(--rail);
+    opacity: 0.6;
+  }
+  58%,
+  72% {
+    stroke: var(--strong);
+    opacity: 1;
+  }
+  86%,
+  100% {
+    stroke: var(--rail);
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .values * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

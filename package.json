@@ -1,0 +1,34 @@
+{
+  "name": "rl1-website",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "prebuild": "node scripts/check-tokens.mjs",
+    "postbuild": "node scripts/clean-export.mjs && node scripts/strip-pdf-metadata.mjs && node scripts/precompress.mjs",
+    "check-tokens": "node scripts/check-tokens.mjs",
+    "clean-export": "node scripts/clean-export.mjs",
+    "precompress": "node scripts/precompress.mjs",
+    "strip-pdf-metadata": "node scripts/strip-pdf-metadata.mjs",
+    "optimize-images": "node scripts/optimize-images.mjs"
+  },
+  "dependencies": {
+    "next": "16.2.11",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.11",
+    "puppeteer": "^24.40.0",
+    "tailwindcss": "^4",
+    "typescript": "^5.9.3"
+  }
+}

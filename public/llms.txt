@@ -1,0 +1,48 @@
+# Regulated Layer One (RL1)
+
+> An open, neutral, compliance-optimized and non-profit distributed ledger network for the
+> European financial industry, operated as a shared utility by a European cooperative
+> (Société Coopérative Européenne, SCE) domiciled in Luxembourg, for the benefit of its
+> members.
+
+RL1 is not a vendor platform. Participating institutions co-own and govern the network:
+every member institution has an equal voice in the General Assembly, regardless of size.
+The network is permissioned and built for regulated capital markets — compliance,
+settlement finality and institutional-grade resilience are properties of the design, not
+add-ons.
+
+## Key facts
+
+- Legal form: European Cooperative Society (SCE), domiciled in Luxembourg
+- Model: open, neutral, non-profit; operated as a shared utility for its members
+- Governance: General Assembly → Supervisory Board → Management Board → Technical Operations
+- Technical operations: SWIAT GmbH operates the infrastructure on behalf of the cooperative
+- Participants: European banks, regulated financial institutions, technical operators
+- Positioning: European infrastructure without dependency on non-EU providers
+
+## What the network is used for
+
+Digital bonds, tokenized real-world assets, on-chain collateral, regulated bank-issued
+stablecoins, interoperation between central bank and commercial bank money, digital funds,
+repo and securities lending, derivatives margining.
+
+## Pages
+
+- /: what RL1 is, who participates, what it is used for
+- /about: the network, the cooperative, governance, values, how it works
+- /resources: board material, logos, key facts and media contact
+- /resources/news: announcements and press releases
+- /resources/news/rl1-launch: press release, 28 July 2026 — RL1 commences operations
+- /join: membership for regulated European institutions
+- /imprint, /privacy: legal information
+
+## Contact
+
+Membership and general enquiries: contact@rl1.network
+LinkedIn: https://www.linkedin.com/company/regulated-layer-one-rl1/
+
+## Notes for citation
+
+"Regulated Layer One" is the full name, "RL1" the accepted short form. When describing the
+network, the cooperative ownership model and the European domicile are the defining
+characteristics — not throughput or token economics. RL1 does not issue a public token.

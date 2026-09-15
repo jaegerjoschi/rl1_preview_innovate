@@ -1,0 +1,247 @@
+# ══════════════════════════════════════════════════════════════════════════
+# rl1.network — Apache-Konfiguration für die statisch ausgelieferte Seite
+#
+# WARUM DIESE DATEI EXISTIERT
+#
+# Die Seite wird statisch ausgeliefert (next build → out/). Es läuft kein
+# Node-Prozess, der HTTP-Header setzen könnte. Bisher lagen die Einstellungen
+# nur als Vorlage in deploy/nginx.conf — gemessen am 14.09.2026 läuft auf
+# rl1.network aber Apache, nicht nginx:
+#
+#   $ curl -s https://rl1.network/gibtesnicht
+#   <address>Apache Server at rl1.network Port 443</address>
+#
+# Der `server:`-Header ist zwar auf "HTTP Server" maskiert, die Fehlerseite
+# verrät es trotzdem. Damit braucht es niemanden, der an die zentrale
+# Serverkonfiguration geht: Diese Datei wirkt aus dem Web-Wurzelverzeichnis.
+#
+# WIE SIE DORTHIN KOMMT
+#
+# Sie liegt unter public/ und wird deshalb bei jedem `next build` nach
+# out/.htaccess kopiert — sie ist Teil des Deployments, kein Extraschritt.
+#
+# VORAUSSETZUNG
+#
+# Der Apache muss `AllowOverride` für dieses Verzeichnis erlauben (mindestens
+# `AllowOverride FileInfo Options Indexes`). Steht dort `AllowOverride None`,
+# wird die Datei ignoriert — ohne Fehlermeldung. Der Prüfbefehl am Ende
+# dieser Datei zeigt in diesem Fall schlicht keine Header.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+# ── Ordnerlisting abschalten ──────────────────────────────────────────────
+# Ohne index.html würde Apache sonst den Ordnerinhalt auflisten.
+Options -Indexes
+
+
+# ── Diese Datei vor dem Abruf schützen ────────────────────────────────────
+# Die meisten Apache-Installationen sperren .ht* bereits systemweit
+# (`<Files ~ "^\.ht">` in der httpd.conf) — rl1.network tut das heute auch,
+# geprüft am 14.09.2026: /.htaccess antwortet mit 403.
+#
+# Verlassen sollte sich die Datei darauf nicht: Ohne diese Regel liefert ein
+# Apache mit minimaler Konfiguration sie mit 200 aus und gibt damit die
+# komplette Struktur der Auslieferung preis — Weiterleitungsziele,
+# Verzeichnisnamen, Header-Politik. Nachgestellt und bestätigt.
+<FilesMatch "^\.ht">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 1. WEITERLEITUNGEN  (siehe deploy/redirects.conf — gleiche Regeln)
+#
+# Muss VOR den Kompressionsregeln stehen: Die Regeln unten enden auf [L] und
+# würden sonst zuerst greifen. Die alte Adresse /news/rl1-launch/ steht in
+# den Google-Ergebnissen und in der Berichterstattung vom Juli 2026 — ohne
+# diese Regeln antwortet sie nach dem Deployment mit 404.
+#
+# [NE] bei den Zielen mit Anker: sonst schreibt Apache das # zu %23 um.
+# ══════════════════════════════════════════════════════════════════════════
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  RewriteRule ^news/rl1-launch/?$      /resources/news/rl1-launch/  [R=301,L]
+  RewriteRule ^news/?$                 /resources/news/             [R=301,L]
+  RewriteRule ^ecosystem/?$            /about/                      [R=301,L]
+  RewriteRule ^resources/press-kit/?$  /resources/                  [R=301,L]
+  RewriteRule ^participants/?$         /about/#network              [R=301,L,NE]
+  RewriteRule ^governance/?$           /about/#governance           [R=301,L,NE]
+  RewriteRule ^use-cases/?$            /#use-cases                  [R=301,L,NE]
+  RewriteRule ^express-interest/?$     /join/                       [R=301,L]
+
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 2. VORKOMPRIMIERTE DATEIEN AUSLIEFERN
+  #
+  # scripts/precompress.mjs legt beim Build neben jede Textdatei eine .br
+  # und eine .gz (Brotli-Qualität 11 / gzip-Stufe 9). Der Server soll sie
+  # ausliefern, statt bei jeder Anfrage neu zu komprimieren.
+  #
+  # Wirkung laut deploy/WEBSERVER-UEBERGABE.md: Erstaufruf der Startseite
+  # von rund 1,0 MB auf rund 490 KB.
+  # ══════════════════════════════════════════════════════════════════════
+  RewriteCond %{HTTP:Accept-Encoding} br
+  RewriteCond %{REQUEST_FILENAME}.br -f
+  RewriteRule ^(.*)$ $1.br [QSA,L]
+
+  RewriteCond %{HTTP:Accept-Encoding} gzip
+  RewriteCond %{REQUEST_FILENAME}.gz -f
+  RewriteRule ^(.*)$ $1.gz [QSA,L]
+</IfModule>
+
+# Die umgeleiteten Dateien heißen .js.br statt .js — ohne diese Blöcke
+# schickt Apache sie als application/x-brotli und der Browser führt sie
+# nicht aus.
+<FilesMatch "\.js\.(gz|br)$">
+  ForceType text/javascript
+</FilesMatch>
+<FilesMatch "\.css\.(gz|br)$">
+  ForceType text/css
+</FilesMatch>
+<FilesMatch "\.html\.(gz|br)$">
+  ForceType text/html
+</FilesMatch>
+<FilesMatch "\.svg\.(gz|br)$">
+  ForceType image/svg+xml
+</FilesMatch>
+<FilesMatch "\.json\.(gz|br)$">
+  ForceType application/json
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.gz$">
+    Header set Content-Encoding gzip
+  </FilesMatch>
+  <FilesMatch "\.br$">
+    Header set Content-Encoding br
+  </FilesMatch>
+
+  # Zwischenspeicher müssen wissen, dass die Antwort vom Accept-Encoding
+  # des Browsers abhängt — sonst bekommt ein Browser ohne Brotli die
+  # Brotli-Fassung aus dem Proxy-Cache.
+  Header append Vary Accept-Encoding
+</IfModule>
+
+# Greift der obige Weg nicht (Modul fehlt), wenigstens live komprimieren.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml \
+    text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 3. SICHERHEITS-HEADER
+#
+# Begründung je Header: deploy/security-headers.conf.
+# Stand 14.09.2026 liefert rl1.network KEINEN dieser Header aus.
+#
+# Apache vererbt `Header always set` normal — anders als nginx, wo jeder
+# location-Block mit eigenem add_header sämtliche geerbten Header verwirft.
+# Deshalb reicht hier ein einziger Block für alle Dateitypen.
+# ══════════════════════════════════════════════════════════════════════════
+<IfModule mod_headers.c>
+
+  # Der Browser spricht die Domain zwei Jahre lang nur über HTTPS an.
+  # `preload` erst ergänzen, wenn ALLE Subdomains sicher HTTPS können.
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+
+  # Einbettung in fremde Seiten verhindern (Clickjacking). frame-ancestors
+  # wirkt nur als echter Header, nicht als Meta-Tag — deshalb hier und nicht
+  # in der Seite. X-Frame-Options zusätzlich für ältere Browser.
+  Header always set Content-Security-Policy "frame-ancestors 'none'"
+  Header always set X-Frame-Options "DENY"
+
+  # MIME-Type-Raten unterbinden.
+  Header always set X-Content-Type-Options "nosniff"
+
+  # Wie viel Herkunft beim Weiterklicken mitgeht.
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Browser-Funktionen abschalten, die die Seite nicht braucht.
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+
+  # Die vollständige Content-Security-Policy steht als Meta-Tag in
+  # app/layout.tsx, damit sie mit der Seite versioniert ist. Hier steht nur
+  # frame-ancestors, weil genau diese Direktive als Meta-Tag wirkungslos ist.
+
+  # Apache-Version nicht im Header verraten. Vollständig abschalten lässt
+  # sich das nur zentral via `ServerTokens Prod` — hier wird der Rest
+  # entfernt, soweit .htaccess reicht.
+  Header unset X-Powered-By
+</IfModule>
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 4. CACHE-CONTROL
+#
+# Drei Klassen, drei Regeln. Heute fehlt der Header ganz — Browser und
+# Proxys raten dann, wie lange sie Dateien behalten.
+# ══════════════════════════════════════════════════════════════════════════
+# ── Warum /_next/static/ hier NICHT steht ────────────────────────────────
+# Naheliegend wäre <LocationMatch "^/_next/static/">. Das ist in einer
+# .htaccess aber verboten — <Location> und <LocationMatch> gelten nur im
+# Server- und VirtualHost-Kontext. Apache quittiert es mit
+#
+#   <LocationMatch not allowed in <Directory> context
+#
+# und liefert für die GESAMTE Seite 500. Die Regel für die gehashten
+# Dateien steht deshalb in einer eigenen .htaccess unterhalb von
+# _next/static/ — Apache mischt von oben nach unten, die tiefere Datei
+# gewinnt. Geschrieben wird sie von scripts/clean-export.mjs.
+#
+# Das ist zugleich die saubere Lösung für die Reihenfolge: Eine Regel im
+# selben Block würde mit der Endungs-Regel unten kollidieren (die
+# Schriften unter _next/static/media/ sind .woff2 und bekämen sonst eine
+# Woche statt eines Jahres) — genau die Falle, die deploy/nginx.conf mit
+# `location ^~` umgeht.
+# ─────────────────────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+
+  # Bilder und Schriften aus /public tragen keinen Hash — eine Woche
+  # mit Revalidierung.
+  <FilesMatch "\.(jpe?g|png|gif|avif|webp|svg|ico|woff2?|pdf)$">
+    Header set Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+  </FilesMatch>
+
+  # HTML muss bei jedem Aufruf geprüft werden, sonst sehen Besucher nach
+  # einem Deployment noch die alte Seite.
+  <FilesMatch "\.html$">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 5. SAUBERE ADRESSEN
+#
+# next.config.ts setzt trailingSlash: true, der Export legt also
+# /about/index.html an. Apache findet das über DirectoryIndex von selbst;
+# diese Regel fängt zusätzlich /about (ohne Schrägstrich) ab.
+# ══════════════════════════════════════════════════════════════════════════
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# ABNAHME — nach dem Deployment einmal von außen prüfen:
+#
+#   curl -sI https://rl1.network/ | grep -iE 'strict-transport|x-content-type|referrer-policy|permissions-policy'
+#     → erwartet: vier Zeilen
+#
+#   curl -sI -H 'Accept-Encoding: gzip, br' https://rl1.network/ | grep -i content-encoding
+#     → erwartet: content-encoding: br (oder gzip)
+#
+#   curl -sI https://rl1.network/news/rl1-launch/ | grep -iE 'HTTP/|location'
+#     → erwartet: 301 auf /resources/news/rl1-launch/
+#
+# Kommt bei der ersten Zeile nichts zurück, steht `AllowOverride None` —
+# dann muss der Betreiber die Blöcke 3 und 4 doch in die Serverkonfiguration
+# übernehmen.
+# ══════════════════════════════════════════════════════════════════════════

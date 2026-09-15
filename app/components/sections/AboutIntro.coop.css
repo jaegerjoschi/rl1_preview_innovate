@@ -1,0 +1,165 @@
+/*
+  Acht-Quadrate-Kreis neben dem SCE-Absatz (AboutIntro.tsx). Reine
+  Strichzeichnung, dieselbe Bildsprache wie Drivers.values.css — deshalb
+  auch hier eine eigene, section-lokale Datei statt globals.css/
+  motion.css: Illustrations-Tokens, keine Text-Kontrastwerte.
+
+  Runde 8 — AM SCROLL, NICHT AN EINEM AUSLÖSER. Die erste Fassung lief
+  einmalig ab, sobald ein IntersectionObserver die Sektion zur Hälfte im
+  Bild sah. Gefordert ist jetzt das Gegenteil: die Scrollposition
+  BESTIMMT den Fortschritt, rückwärts genauso wie vorwärts. Deshalb
+  hängt hier alles an --p (0 → 1 über die Klebephase der Sektion,
+  geschrieben von MotionRoot auf das [data-scrub="slow"]-Element in
+  AboutIntro.tsx) und wird per calc() zwischen Anfangs- und Endwert
+  interpoliert. KEINE Transitions: jede Übergangszeit wäre hier Nachlauf
+  gegenüber dem Finger.
+
+  --p ist exakt 0, bis die Sektion oben andockt — die Animation startet
+  dadurch nicht zu früh. Ohne JavaScript und bei reduzierter Bewegung
+  wird --p nie gesetzt (MotionRoot setzt dann kein html.scroll-ready),
+  der Default 1 zeigt dann sofort den Endzustand: geschlossener Kreis.
+*/
+
+.coop {
+  --stage: #000000;
+  --fill: var(--stage);
+  --stroke: rgba(255, 255, 255, 0.42);
+  --strong: #ffffff;
+
+  /* Hausregel: ohne JS steht --p auf 1 (Endzustand), siehe oben. */
+  --coop-p: var(--p, 1);
+  /* Erst die Angleichung (bis 45 %), dann der Ringschluss. */
+  --align: clamp(0, calc(var(--coop-p) / 0.45), 1);
+}
+
+.coop__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.sq {
+  fill: var(--fill);
+  stroke: var(--stroke);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.arc {
+  fill: none;
+  stroke: var(--stroke);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  /* Jedes Segment blendet über ein eigenes Fenster von 5,5 % des
+     Fortschritts auf — nacheinander, einmal herum. */
+  opacity: clamp(0, calc((var(--coop-p) - var(--from)) / 0.055), 1);
+}
+
+/*
+  EINE Formel für alle acht Quadrate; je Element stehen unten nur noch
+  Start- und Zielwerte. transform-box/-origin sind Pflicht, sonst
+  rechnet der Browser gegen die Elementmitte statt gegen die viewBox,
+  und die Koordinaten unten stimmen nicht mehr.
+*/
+.coop use {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: translate(
+      calc(var(--x0) * 1px + (var(--x1) - var(--x0)) * 1px * var(--align)),
+      calc(var(--y0) * 1px + (var(--y1) - var(--y0)) * 1px * var(--align))
+    )
+    scale(calc(var(--s0) + (var(--s1) - var(--s0)) * var(--align)));
+}
+
+/* Ausgangszustand (x0/y0/s0): ungleich groß, unregelmäßig verteilt.
+   Endzustand (x1/y1/s1): identische Größe, exakte Achtelung des Kreises. */
+.coop .k0 {
+  --x0: 118;
+  --y0: 30;
+  --s0: 0.62;
+  --x1: 130;
+  --y1: 19;
+  --s1: 0.45;
+}
+.coop .k1 {
+  --x0: 176;
+  --y0: 26;
+  --s0: 0.33;
+  --x1: 169.6;
+  --y1: 35.4;
+  --s1: 0.45;
+}
+.coop .k2 {
+  --x0: 200;
+  --y0: 82;
+  --s0: 0.52;
+  --x1: 186;
+  --y1: 75;
+  --s1: 0.45;
+}
+.coop .k3 {
+  --x0: 162;
+  --y0: 122;
+  --s0: 0.28;
+  --x1: 169.6;
+  --y1: 114.6;
+  --s1: 0.45;
+}
+.coop .k4 {
+  --x0: 126;
+  --y0: 130;
+  --s0: 0.58;
+  --x1: 130;
+  --y1: 131;
+  --s1: 0.45;
+}
+.coop .k5 {
+  --x0: 82;
+  --y0: 124;
+  --s0: 0.36;
+  --x1: 90.4;
+  --y1: 114.6;
+  --s1: 0.45;
+}
+.coop .k6 {
+  --x0: 58;
+  --y0: 68;
+  --s0: 0.46;
+  --x1: 74;
+  --y1: 75;
+  --s1: 0.45;
+}
+.coop .k7 {
+  --x0: 96;
+  --y0: 26;
+  --s0: 0.3;
+  --x1: 90.4;
+  --y1: 35.4;
+  --s1: 0.45;
+}
+
+/* Der Ring schließt sich Segment für Segment, einmal herum. */
+.coop .g0 {
+  --from: 0.45;
+}
+.coop .g1 {
+  --from: 0.505;
+}
+.coop .g2 {
+  --from: 0.56;
+}
+.coop .g3 {
+  --from: 0.615;
+}
+.coop .g4 {
+  --from: 0.67;
+}
+.coop .g5 {
+  --from: 0.725;
+}
+.coop .g6 {
+  --from: 0.78;
+}
+.coop .g7 {
+  --from: 0.835;
+}
